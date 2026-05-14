@@ -1,16 +1,16 @@
 {
   "name": "split-editor",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Open pi prompt editing in a live tmux split editor without freezing the pi UI.",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kyleqbnguyen/pi-split-editor.git"
+    "url": "git+https://github.com/kyleqbnguyen/split-editor.git"
   },
-  "homepage": "https://github.com/kyleqbnguyen/pi-split-editor#readme",
+  "homepage": "https://github.com/kyleqbnguyen/split-editor#readme",
   "bugs": {
-    "url": "https://github.com/kyleqbnguyen/pi-split-editor/issues"
+    "url": "https://github.com/kyleqbnguyen/split-editor/issues"
   },
   "keywords": [
     "pi-package",
@@ -22,14 +22,15 @@
   "files": [
     "index.ts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "assets"
   ],
   "pi": {
     "extensions": [
       "./index.ts"
     ],
-    "image": "https://github.com/user-attachments/assets/6ff75786-04d6-4dee-8a7f-88a7cd7acad1",
-    "video": "https://github.com/user-attachments/assets/47a81b03-8292-45b9-8c85-508719c5f585"
+    "video": "https://raw.githubusercontent.com/kyleqbnguyen/split-editor/main/assets/demo_compressed.mp4",
+    "image": "https://raw.githubusercontent.com/kyleqbnguyen/split-editor/main/assets/screenshot.png"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
