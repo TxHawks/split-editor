@@ -1,8 +1,8 @@
-# pi-split-editor implementation plan
+# split-editor implementation plan
 
 ## Goal
 
-Create a pi package named `pi-split-editor` that replaces pi's blocking Ctrl+G
+Create a pi package named `split-editor` that replaces pi's blocking Ctrl+G
 external-editor workflow with a tmux split editor workflow.
 
 When the user presses Ctrl+G in pi's prompt editor:
@@ -38,12 +38,12 @@ Key APIs/features to use:
 
 ## Package structure
 
-Create a pi package under `picosystem/pi-split-editor/`.
+Create a pi package under `picosystem/split-editor/`.
 
 Suggested structure:
 
 ```text
-picosystem/pi-split-editor/
+picosystem/split-editor/
 ├── package.json
 ├── README.md
 ├── plan.md
@@ -55,7 +55,7 @@ picosystem/pi-split-editor/
 
 ```json
 {
-  "name": "pi-split-editor",
+  "name": "split-editor",
   "version": "0.1.0",
   "description": "Open pi prompt editing in a live tmux split editor without freezing the pi UI.",
   "type": "module",
@@ -90,7 +90,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("session_shutdown", (_event, ctx) => {
     ctx.ui.setEditorComponent(undefined);
-    ctx.ui.setStatus("pi-split-editor", undefined);
+    ctx.ui.setStatus("split-editor", undefined);
   });
 }
 ```
@@ -144,8 +144,8 @@ When Ctrl+G is pressed:
    - Prefer `this.getExpandedText?.() ?? this.getText()` if available.
 4. Write it to a temp file:
    - Use `os.tmpdir()`.
-   - Filename should include `pi-split-editor`, `process.pid`, and a
-     timestamp/random suffix.
+   - Filename should use a `split-editor-` prefix plus a compact timestamp and
+     `process.pid` suffix.
    - Extension `.md` is preferred.
 5. Open tmux split asynchronously with `spawn`, not `spawnSync`.
 6. Wait asynchronously for editor completion using `tmux wait-for`.
@@ -186,16 +186,16 @@ Start simple, but design for future options.
 Initial hardcoded defaults are acceptable:
 
 ```ts
-const DEFAULT_EDITOR = process.env.PI_SPLIT_EDITOR_EDITOR ?? "nvim";
-const DEFAULT_SPLIT_SIZE = process.env.PI_SPLIT_EDITOR_SIZE ?? "50%";
-const DEFAULT_SPLIT_DIRECTION = process.env.PI_SPLIT_EDITOR_DIRECTION ?? "h";
+const DEFAULT_EDITOR = process.env.SPLIT_EDITOR_EDITOR ?? "nvim";
+const DEFAULT_SPLIT_SIZE = process.env.SPLIT_EDITOR_SIZE ?? "50%";
+const DEFAULT_SPLIT_DIRECTION = process.env.SPLIT_EDITOR_DIRECTION ?? "h";
 ```
 
 Potential env vars:
 
-- `PI_SPLIT_EDITOR_EDITOR` default `nvim`
-- `PI_SPLIT_EDITOR_SIZE` default `50%`
-- `PI_SPLIT_EDITOR_DIRECTION` values:
+- `SPLIT_EDITOR_EDITOR` default `nvim`
+- `SPLIT_EDITOR_SIZE` default `50%`
+- `SPLIT_EDITOR_DIRECTION` values:
   - `h` / `horizontal` = side-by-side split
   - `v` / `vertical` = top/bottom split
 
@@ -212,7 +212,7 @@ split editor: open
 Use:
 
 ```ts
-ctx.ui.setStatus("pi-split-editor", "split editor: open");
+ctx.ui.setStatus("split-editor", "split editor: open");
 ```
 
 Clear it after nvim exits or if opening fails.

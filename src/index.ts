@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,10 +6,10 @@ import { join } from "node:path";
 import { CustomEditor, type ExtensionAPI, type ExtensionUIContext, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, type EditorTheme, type TUI } from "@earendil-works/pi-tui";
 
-const STATUS_KEY = "pi-split-editor";
-const DEFAULT_EDITOR = process.env.PI_SPLIT_EDITOR_EDITOR?.trim() || "nvim";
-const DEFAULT_SPLIT_SIZE = process.env.PI_SPLIT_EDITOR_SIZE?.trim() || "50%";
-const DEFAULT_SPLIT_DIRECTION = process.env.PI_SPLIT_EDITOR_DIRECTION?.trim() || "h";
+const STATUS_KEY = "split-editor";
+const DEFAULT_EDITOR = process.env.SPLIT_EDITOR_EDITOR?.trim() || "nvim";
+const DEFAULT_SPLIT_SIZE = process.env.SPLIT_EDITOR_SIZE?.trim() || "50%";
+const DEFAULT_SPLIT_DIRECTION = process.env.SPLIT_EDITOR_DIRECTION?.trim() || "h";
 
 type ProcessResult = {
 	code: number | null;
@@ -69,7 +68,7 @@ class SplitEditor extends CustomEditor {
 
 	private async openSplitEditor(): Promise<void> {
 		if (!process.env.TMUX) {
-			this.ui.notify("pi-split-editor requires tmux; Ctrl+G was ignored", "warning");
+			this.ui.notify("split-editor requires tmux; Ctrl+G was ignored", "warning");
 			return;
 		}
 
@@ -78,10 +77,10 @@ class SplitEditor extends CustomEditor {
 			return;
 		}
 
-		const suffix = `${process.pid}-${Date.now()}-${randomUUID()}`;
-		const tempFile = join(tmpdir(), `pi-split-editor-${suffix}.md`);
-		const statusFile = join(tmpdir(), `pi-split-editor-${suffix}.status`);
-		const token = `pi-split-editor-${suffix}`;
+		const suffix = `${Date.now().toString(36)}-${process.pid.toString(36)}`;
+		const tempFile = join(tmpdir(), `split-editor-${suffix}.md`);
+		const statusFile = join(tmpdir(), `split-editor-${suffix}.status`);
+		const token = `split-editor-${suffix}`;
 
 		this.editing = true;
 		this.ui.setStatus(STATUS_KEY, "split editor: open");
@@ -109,13 +108,13 @@ class SplitEditor extends CustomEditor {
 				}
 			}
 
-			const newText = await readFile(tempFile, "utf8");
+			const newText = (await readFile(tempFile, "utf8")).replace(/\n$/, "");
 			if (this.sessionState.active) {
 				this.setText(newText);
 				this.tui.requestRender();
 			}
 		} catch (error) {
-			this.ui.notify(`pi-split-editor: ${formatError(error)}`, "error");
+			this.ui.notify(`split-editor: ${formatError(error)}`, "error");
 		} finally {
 			this.editing = false;
 			this.ui.setStatus(STATUS_KEY, undefined);
