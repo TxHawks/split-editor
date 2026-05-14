@@ -181,25 +181,35 @@ Suggested defaults:
 
 ## Configuration
 
-Start simple, but design for future options.
+Configuration supports the same three options from standalone config files,
+pi `settings.json`, and environment variables.
 
-Initial hardcoded defaults are acceptable:
+Defaults:
 
 ```ts
-const DEFAULT_EDITOR = process.env.SPLIT_EDITOR_EDITOR ?? "nvim";
-const DEFAULT_SPLIT_SIZE = process.env.SPLIT_EDITOR_SIZE ?? "50%";
-const DEFAULT_SPLIT_DIRECTION = process.env.SPLIT_EDITOR_DIRECTION ?? "h";
+const DEFAULT_CONFIG = {
+  editor: "nvim",
+  size: "50%",
+  direction: "h",
+};
 ```
 
-Potential env vars:
+Options:
 
-- `SPLIT_EDITOR_EDITOR` default `nvim`
-- `SPLIT_EDITOR_SIZE` default `50%`
-- `SPLIT_EDITOR_DIRECTION` values:
+- `editor` / `SPLIT_EDITOR_EDITOR` default `nvim`
+- `size` / `SPLIT_EDITOR_SIZE` default `50%`
+- `direction` / `SPLIT_EDITOR_DIRECTION` values:
   - `h` / `horizontal` = side-by-side split
   - `v` / `vertical` = top/bottom split
 
-Do not overbuild config in the first version.
+Precedence:
+
+1. Defaults
+2. Global config: `~/.pi/agent/extensions/split-editor.json`
+3. Global pi settings: `~/.pi/agent/settings.json` under `splitEditor`
+4. Project config: `.pi/split-editor.json`
+5. Project pi settings: `.pi/settings.json` under `splitEditor`
+6. Environment variables
 
 ## Status/notifications
 

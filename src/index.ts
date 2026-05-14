@@ -3,13 +3,21 @@ import { readFile, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CustomEditor, type ExtensionAPI, type ExtensionUIContext, type KeybindingsManager } from "@earendil-works/pi-coding-agent";
+import {
+	CustomEditor,
+	getAgentDir,
+	type ExtensionAPI,
+	type ExtensionUIContext,
+	type KeybindingsManager,
+} from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, type EditorTheme, type TUI } from "@earendil-works/pi-tui";
 
 const STATUS_KEY = "split-editor";
-const DEFAULT_EDITOR = process.env.SPLIT_EDITOR_EDITOR?.trim() || "nvim";
-const DEFAULT_SPLIT_SIZE = process.env.SPLIT_EDITOR_SIZE?.trim() || "50%";
-const DEFAULT_SPLIT_DIRECTION = process.env.SPLIT_EDITOR_DIRECTION?.trim() || "h";
+const DEFAULT_CONFIG: SplitEditorConfig = {
+	editor: "nvim",
+	size: "50%",
+	direction: "h",
+};
 
 type ProcessResult = {
 	code: number | null;
@@ -21,6 +29,16 @@ type SessionState = {
 	active: boolean;
 };
 
+type SplitEditorConfig = {
+	editor: string;
+	size: string;
+	direction: string;
+};
+
+type RawConfig = Partial<SplitEditorConfig> & {
+	splitEditor?: Partial<SplitEditorConfig>;
+};
+
 class SplitEditor extends CustomEditor {
 	private editing = false;
 
@@ -29,6 +47,7 @@ class SplitEditor extends CustomEditor {
 		theme: EditorTheme,
 		private readonly appKeybindings: KeybindingsManager,
 		private readonly ui: ExtensionUIContext,
+		private readonly cwd: string,
 		private readonly sessionState: SessionState,
 	) {
 		super(tui, theme, appKeybindings);
@@ -87,15 +106,16 @@ class SplitEditor extends CustomEditor {
 		this.tui.requestRender();
 
 		try {
+			const config = await loadConfig(this.cwd);
 			await writeFile(tempFile, this.getExpandedText(), "utf8");
 
 			await openTmuxSplitAndWait({
 				tempFile,
 				statusFile,
 				token,
-				editorCommand: DEFAULT_EDITOR,
-				splitSize: DEFAULT_SPLIT_SIZE,
-				splitDirection: DEFAULT_SPLIT_DIRECTION,
+				editorCommand: config.editor,
+				splitSize: config.size,
+				splitDirection: config.direction,
 			});
 
 			const status = await readOptional(statusFile);
@@ -158,6 +178,48 @@ async function openTmuxSplitAndWait(options: {
 	if (waitResult.code !== 0) {
 		throw new Error(`tmux wait-for failed${formatProcessDetails(waitResult)}`);
 	}
+}
+
+async function loadConfig(cwd: string): Promise<SplitEditorConfig> {
+	const globalConfig = normalizeRawConfig(await readJsonFile(join(getAgentDir(), "extensions", "split-editor.json")));
+	const projectConfig = normalizeRawConfig(await readJsonFile(join(cwd, ".pi", "split-editor.json")));
+	const globalSettings = normalizeRawConfig(await readJsonFile(join(getAgentDir(), "settings.json")));
+	const projectSettings = normalizeRawConfig(await readJsonFile(join(cwd, ".pi", "settings.json")));
+	const envConfig = normalizeRawConfig({
+		editor: process.env.SPLIT_EDITOR_EDITOR,
+		size: process.env.SPLIT_EDITOR_SIZE,
+		direction: process.env.SPLIT_EDITOR_DIRECTION,
+	});
+
+	return {
+		...DEFAULT_CONFIG,
+		...globalConfig,
+		...globalSettings,
+		...projectConfig,
+		...projectSettings,
+		...envConfig,
+	};
+}
+
+async function readJsonFile(path: string): Promise<unknown> {
+	try {
+		return JSON.parse(await readFile(path, "utf8")) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
+function normalizeRawConfig(raw: unknown): Partial<SplitEditorConfig> {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+	const record = raw as RawConfig;
+	const source = record.splitEditor && typeof record.splitEditor === "object" ? record.splitEditor : record;
+	const config: Partial<SplitEditorConfig> = {};
+
+	if (typeof source.editor === "string" && source.editor.trim()) config.editor = source.editor.trim();
+	if (typeof source.size === "string" && source.size.trim()) config.size = source.size.trim();
+	if (typeof source.direction === "string" && source.direction.trim()) config.direction = source.direction.trim();
+
+	return config;
 }
 
 function buildPaneCommand(editorCommand: string, tempFile: string, statusFile: string, token: string): string {
@@ -244,7 +306,7 @@ export default function (pi: ExtensionAPI) {
 		if (!ctx.hasUI) return;
 		sessionState.active = true;
 		ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-			new SplitEditor(tui, theme, keybindings, ctx.ui, sessionState),
+			new SplitEditor(tui, theme, keybindings, ctx.ui, ctx.cwd, sessionState),
 		);
 	});
 
