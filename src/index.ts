@@ -16,6 +16,7 @@ const DEFAULT_CONFIG: SplitEditorConfig = {
 	editor: "nvim",
 	size: "50%",
 	direction: "h",
+	showIndicator: true,
 };
 
 type ProcessResult = {
@@ -32,6 +33,7 @@ type SplitEditorConfig = {
 	editor: string;
 	size: string;
 	direction: string;
+	showIndicator: boolean;
 };
 
 type RawConfig = Partial<SplitEditorConfig> & {
@@ -40,6 +42,8 @@ type RawConfig = Partial<SplitEditorConfig> & {
 
 class SplitEditor extends CustomEditor {
 	private editing = false;
+	private opening = false;
+	private showIndicator = DEFAULT_CONFIG.showIndicator;
 
 	constructor(
 		tui: TUI,
@@ -56,7 +60,7 @@ class SplitEditor extends CustomEditor {
 		// Intercept before CustomEditor's copied app handlers so pi's built-in
 		// blocking external-editor action never runs.
 		if (this.appKeybindings.matches(data, "app.editor.external")) {
-			if (this.editing) {
+			if (this.editing || this.opening) {
 				this.ui.notify("split editor is already open", "warning");
 				return;
 			}
@@ -64,7 +68,7 @@ class SplitEditor extends CustomEditor {
 			return;
 		}
 
-		if (this.editing) {
+		if (this.editing || this.opening) {
 			// Lock the prompt while the tmux pane owns the editable copy.
 			return;
 		}
@@ -74,7 +78,7 @@ class SplitEditor extends CustomEditor {
 
 	render(width: number): string[] {
 		const lines = super.render(width);
-		if (!this.editing || lines.length === 0) return lines;
+		if (!this.editing || !this.showIndicator || lines.length === 0) return lines;
 
 		const label = " SPLIT EDITOR OPEN ";
 		const last = lines.length - 1;
@@ -90,21 +94,23 @@ class SplitEditor extends CustomEditor {
 			return;
 		}
 
-		if (this.editing) {
+		if (this.editing || this.opening) {
 			this.ui.notify("split editor is already open", "warning");
 			return;
 		}
 
+		this.opening = true;
 		const suffix = `${Date.now().toString(36)}-${process.pid.toString(36)}`;
 		const tempFile = join(tmpdir(), `split-editor-${suffix}.md`);
 		const statusFile = join(tmpdir(), `split-editor-${suffix}.status`);
 		const token = `split-editor-${suffix}`;
 
-		this.editing = true;
-		this.tui.requestRender();
-
 		try {
 			const config = await loadConfig(this.cwd);
+			this.showIndicator = config.showIndicator;
+			this.editing = true;
+			this.opening = false;
+			this.tui.requestRender();
 			await writeFile(tempFile, this.getExpandedText(), "utf8");
 
 			await openTmuxSplitAndWait({
@@ -135,6 +141,7 @@ class SplitEditor extends CustomEditor {
 			this.ui.notify(`split-editor: ${formatError(error)}`, "error");
 		} finally {
 			this.editing = false;
+			this.opening = false;
 			await Promise.allSettled([unlink(tempFile), unlink(statusFile)]);
 			this.tui.requestRender();
 		}
@@ -186,6 +193,7 @@ async function loadConfig(cwd: string): Promise<SplitEditorConfig> {
 		editor: process.env.SPLIT_EDITOR_EDITOR,
 		size: process.env.SPLIT_EDITOR_SIZE,
 		direction: process.env.SPLIT_EDITOR_DIRECTION,
+		showIndicator: parseEnvBoolean(process.env.SPLIT_EDITOR_SHOW_INDICATOR),
 	});
 
 	return {
@@ -215,8 +223,17 @@ function normalizeRawConfig(raw: unknown): Partial<SplitEditorConfig> {
 	if (typeof source.editor === "string" && source.editor.trim()) config.editor = source.editor.trim();
 	if (typeof source.size === "string" && source.size.trim()) config.size = source.size.trim();
 	if (typeof source.direction === "string" && source.direction.trim()) config.direction = source.direction.trim();
+	if (typeof source.showIndicator === "boolean") config.showIndicator = source.showIndicator;
 
 	return config;
+}
+
+function parseEnvBoolean(value: string | undefined): boolean | undefined {
+	if (value === undefined) return undefined;
+	const normalized = value.trim().toLowerCase();
+	if (["1", "true", "yes", "on"].includes(normalized)) return true;
+	if (["0", "false", "no", "off"].includes(normalized)) return false;
+	return undefined;
 }
 
 function buildPaneCommand(editorCommand: string, tempFile: string, statusFile: string, token: string): string {

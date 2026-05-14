@@ -181,8 +181,8 @@ Suggested defaults:
 
 ## Configuration
 
-Configuration supports the same three options from standalone config files,
-pi `settings.json`, and environment variables.
+Configuration supports the editor command, split geometry, and lock indicator
+from standalone config files, pi `settings.json`, and environment variables.
 
 Defaults:
 
@@ -191,6 +191,7 @@ const DEFAULT_CONFIG = {
   editor: "nvim",
   size: "50%",
   direction: "h",
+  showIndicator: true,
 };
 ```
 
@@ -201,6 +202,7 @@ Options:
 - `direction` / `SPLIT_EDITOR_DIRECTION` values:
   - `h` / `horizontal` = side-by-side split
   - `v` / `vertical` = top/bottom split
+- `showIndicator` / `SPLIT_EDITOR_SHOW_INDICATOR` default `true`
 
 Precedence:
 

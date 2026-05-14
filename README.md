@@ -46,6 +46,8 @@ Options:
 - `size` - tmux split size, default: `50%`
 - `direction` - `h`/`horizontal` for side-by-side, `v`/`vertical` for
   top/bottom; default: `h`
+- `showIndicator` - show `SPLIT EDITOR OPEN` in the editor border while locked;
+  default: `true`
 
 Precedence, lowest to highest:
 
@@ -62,7 +64,8 @@ Standalone config files use the options directly:
 {
   "editor": "nvim",
   "size": "50%",
-  "direction": "horizontal"
+  "direction": "horizontal",
+  "showIndicator": true
 }
 ```
 
@@ -73,7 +76,8 @@ Pi `settings.json` uses a `splitEditor` object:
   "splitEditor": {
     "editor": "nvim",
     "size": "50%",
-    "direction": "vertical"
+    "direction": "vertical",
+    "showIndicator": true
   }
 }
 ```
@@ -81,7 +85,7 @@ Pi `settings.json` uses a `splitEditor` object:
 Environment variables:
 
 ```bash
-SPLIT_EDITOR_EDITOR="nvim" SPLIT_EDITOR_SIZE=50% SPLIT_EDITOR_DIRECTION=h pi
+SPLIT_EDITOR_EDITOR="nvim" SPLIT_EDITOR_SIZE=50% SPLIT_EDITOR_DIRECTION=h SPLIT_EDITOR_SHOW_INDICATOR=false pi
 ```
 
 Configuration is read each time Ctrl+G opens the split editor, so file/env
