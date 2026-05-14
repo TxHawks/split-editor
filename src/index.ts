@@ -12,7 +12,6 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth, type EditorTheme, type TUI } from "@earendil-works/pi-tui";
 
-const STATUS_KEY = "split-editor";
 const DEFAULT_CONFIG: SplitEditorConfig = {
 	editor: "nvim",
 	size: "50%",
@@ -102,7 +101,6 @@ class SplitEditor extends CustomEditor {
 		const token = `split-editor-${suffix}`;
 
 		this.editing = true;
-		this.ui.setStatus(STATUS_KEY, "split editor: open");
 		this.tui.requestRender();
 
 		try {
@@ -137,7 +135,6 @@ class SplitEditor extends CustomEditor {
 			this.ui.notify(`split-editor: ${formatError(error)}`, "error");
 		} finally {
 			this.editing = false;
-			this.ui.setStatus(STATUS_KEY, undefined);
 			await Promise.allSettled([unlink(tempFile), unlink(statusFile)]);
 			this.tui.requestRender();
 		}
@@ -313,6 +310,5 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_shutdown", (_event, ctx) => {
 		sessionState.active = false;
 		ctx.ui.setEditorComponent(undefined);
-		ctx.ui.setStatus(STATUS_KEY, undefined);
 	});
 }
