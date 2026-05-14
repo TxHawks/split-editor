@@ -4,9 +4,10 @@
 tmux split editor.
 
 When you press Ctrl+G in pi's prompt editor, the current prompt is written to a
-temporary Markdown file, opened with `nvim` in a tmux split, and read back into
-the prompt when the editor exits. Pi stays visible in the original tmux pane,
-and the prompt is locked while the split editor is open.
+temporary Markdown file, opened with the configured editor (`nvim` by default)
+in a tmux split, and read back into the prompt when the editor exits. Pi stays
+visible in the original tmux pane, and the prompt is locked while the split
+editor is open.
 
 ## Requirements
 
@@ -85,8 +86,15 @@ Pi `settings.json` uses a `splitEditor` object:
 Environment variables:
 
 ```bash
-SPLIT_EDITOR_EDITOR="nvim" SPLIT_EDITOR_SIZE=50% SPLIT_EDITOR_DIRECTION=h SPLIT_EDITOR_SHOW_INDICATOR=false pi
+SPLIT_EDITOR_EDITOR="nvim" \
+SPLIT_EDITOR_SIZE=50% \
+SPLIT_EDITOR_DIRECTION=h \
+SPLIT_EDITOR_SHOW_INDICATOR=false \
+pi
 ```
+
+`SPLIT_EDITOR_SHOW_INDICATOR` accepts `1`, `true`, `yes`, `on`, `0`, `false`,
+`no`, or `off`.
 
 Configuration is read each time Ctrl+G opens the split editor, so file/env
 changes are picked up without reloading the extension.
