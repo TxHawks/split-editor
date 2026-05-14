@@ -27,7 +27,7 @@ external editor.
 
 ## Installation
 
-From npm, once published:
+From npm:
 
 ```bash
 pi install npm:split-editor
