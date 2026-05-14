@@ -1,9 +1,5 @@
 # split-editor
 
-<p>
-  <img src="https://raw.githubusercontent.com/kyleqbnguyen/split-editor/main/assets/screenshot.png" alt="split-editor screenshot" width="1100">
-</p>
-
 Edit pi prompts in a live tmux split without blocking pi's TUI.
 
 `split-editor` replaces pi's blocking Ctrl+G external-editor workflow. Press
