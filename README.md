@@ -27,13 +27,7 @@ https://github.com/user-attachments/assets/47a81b03-8292-45b9-8c85-508719c5f585
 From npm:
 
 ```bash
-pi install npm:split-editor
-```
-
-From a local checkout:
-
-```bash
-pi install /path/to/split-editor
+pi install git:github.com/TxHawks/split-editor#
 ```
 
 For development:
