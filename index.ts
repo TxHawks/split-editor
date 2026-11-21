@@ -1,6 +1,5 @@
 /**
- * Open $EDITOR in a tmux split, with pi prompt allowing
- * to see the context while editing.
+ * Edit the current prompt in a tmux or Rex split while keeping pi visible.
  */
 import { spawn } from "node:child_process";
 import { appendFile, readFile, unlink, writeFile } from "node:fs/promises";
@@ -50,8 +49,16 @@ type RawConfig = Partial<SplitEditorConfig> & {
   splitEditor?: Partial<SplitEditorConfig>;
 };
 
-async function openSplitEditor(ui: ExtensionUIContext, cwd: string, state: SessionState): Promise<void> {
-  if (!process.env.TMUX) return; // handler already guards; stay safe.
+type SplitTarget = { kind: "tmux" } | { kind: "rex"; session: string; block: string };
+
+function detectTarget(): SplitTarget | undefined {
+  const { TMUX, REX_SESSION, REX_BLOCK } = process.env;
+  if (TMUX) return { kind: "tmux" }; // tmux nested inside Rex owns the pi pane.
+  if (REX_SESSION && REX_BLOCK) return { kind: "rex", session: REX_SESSION, block: REX_BLOCK };
+  return undefined;
+}
+
+async function openSplitEditor(ui: ExtensionUIContext, cwd: string, state: SessionState, target: SplitTarget): Promise<void> {
   if (state.editing || state.opening) {
     ui.notify("split editor is already open", "warning");
     return;
@@ -75,14 +82,12 @@ async function openSplitEditor(ui: ExtensionUIContext, cwd: string, state: Sessi
     // current prompt text. Round-tripped verbatim through the temp file.
     await writeFile(tempFile, ui.getEditorText(), "utf8");
 
-    await openTmuxSplitAndWait({
-      tempFile,
-      statusFile,
-      token,
-      editorCommand: config.editor,
-      splitSize: config.size,
-      splitDirection: config.direction,
-    });
+    const editorCommand = `${config.editor} ${shellQuote(tempFile)}; printf '%s' "$?" > ${shellQuote(statusFile)}`;
+    if (target.kind === "rex") {
+      await openRexSplitAndWait(target, cwd, config, editorCommand);
+    } else {
+      await openTmuxSplitAndWait(token, config, editorCommand);
+    }
 
     const status = await readOptional(statusFile);
     if (status === undefined) {
@@ -108,23 +113,34 @@ async function openSplitEditor(ui: ExtensionUIContext, cwd: string, state: Sessi
   }
 }
 
-async function openTmuxSplitAndWait(options: {
-  tempFile: string;
-  statusFile: string;
-  token: string;
-  editorCommand: string;
-  splitSize: string;
-  splitDirection: string;
-}): Promise<void> {
-  const wait = startProcess("tmux", ["wait-for", options.token]);
+async function openRexSplitAndWait(
+  target: Extract<SplitTarget, { kind: "rex" }>,
+  cwd: string,
+  config: SplitEditorConfig,
+  editorCommand: string,
+): Promise<void> {
+  const size = /^(\d{1,2})%$/.exec(config.size);
+  if (!size || Number(size[1]) < 1) throw new Error("Rex split size must be a percentage from 1% to 99%");
+
+  const result = await runProcess("rex", [
+    "split", "-s", target.session, "-b", target.block, "-c", cwd,
+    `--split=${splitFlag(config.direction) === "-v" ? "below" : "right"}`, "--ratio", String(Number(size[1])),
+    "--wait", "--", "sh", "-c", editorCommand,
+  ]);
+  if (result.code !== 0) throw new Error(`rex split failed${formatProcessDetails(result)}`);
+}
+
+async function openTmuxSplitAndWait(token: string, config: SplitEditorConfig, editorCommand: string): Promise<void> {
+  const wait = startProcess("tmux", ["wait-for", token]);
   const waitPromise = wait.promise.catch((error: unknown) => ({
     code: 1,
     signal: null,
     stderr: formatError(error),
   }));
 
-  const paneCommand = buildPaneCommand(options.editorCommand, options.tempFile, options.statusFile, options.token);
-  const splitArgs = ["split-window", splitFlag(options.splitDirection), "-l", options.splitSize, paneCommand];
+  const signalCommand = `tmux wait-for -S ${shellQuote(token)}`;
+  const paneCommand = `trap ${shellQuote(signalCommand)} EXIT; ${editorCommand}`;
+  const splitArgs = ["split-window", splitFlag(config.direction), "-l", config.size, paneCommand];
 
   try {
     const splitResult = await runProcess("tmux", splitArgs);
@@ -199,15 +215,6 @@ function parseEnvBoolean(value: string | undefined): boolean | undefined {
   if (["1", "true", "yes", "on"].includes(normalized)) return true;
   if (["0", "false", "no", "off"].includes(normalized)) return false;
   return undefined;
-}
-
-function buildPaneCommand(editorCommand: string, tempFile: string, statusFile: string, token: string): string {
-  const signalCommand = `tmux wait-for -S ${shellQuote(token)}`;
-  return [
-    `trap ${shellQuote(signalCommand)} EXIT`,
-    `${editorCommand} ${shellQuote(tempFile)}`,
-    `printf '%s' "$?" > ${shellQuote(statusFile)}`,
-  ].join("; ");
 }
 
 function splitFlag(direction: string): "-h" | "-v" {
@@ -314,11 +321,12 @@ export default function (pi: ExtensionAPI) {
       }
 
       if (triggers.includes(data)) {
-        if (!process.env.TMUX) {
-          ui.notify("tmux not detected; falling back to pi's external editor. Start tmux for split editing.", "warning");
+        const target = detectTarget();
+        if (!target) {
+          ui.notify("Neither tmux nor a Rex pane detected; using pi's external editor.", "warning");
           return undefined; // don't consume -> pi's built-in (blocking) external editor handles it
         }
-        void openSplitEditor(ui, cwd, state);
+        void openSplitEditor(ui, cwd, state, target);
         return { consume: true };
       }
 
